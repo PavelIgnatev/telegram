@@ -1,0 +1,12 @@
+./*.logs
+*.logs 
+/json
+json/*.json
+*.json
+xlsx
+txt
+*.txt
+*.xlsx
+*.session
+*.session-journal
+*.log
