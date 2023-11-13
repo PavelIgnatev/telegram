@@ -7,7 +7,18 @@ import random
 import asyncio
 import time
 
-file_path = input("Введите путь до файла базы (json): ")
+json_files = [f for f in os.listdir("json") if f.endswith(".json")]
+if not json_files:
+    print("В папке 'json' нет файлов с расширением '.json'.")
+    exit()
+print("Доступные файлы:")
+for i, file_name in enumerate(json_files, start=1):
+    print(f"{i}. {file_name}")
+selected_file_index = int(input("Введите номер файла из папки json: ")) - 1
+file_path = os.path.join("json", json_files[selected_file_index])
+proxy_login_password = input("Введите Логин:Пароль от прокси: ")
+proxy_http_port = input("Введите HTTP:PORT от прокси: ")
+proxy_change_proxy = input("Введите ссылку для смену прокси: ")
 
 # Настройка логгирования
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(message)s')
@@ -20,117 +31,9 @@ file_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] %(mes
 # Добавление обработчика к логгеру
 logger.addHandler(file_handler)
 
-proxies = [
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11750",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11749",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11748",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11747",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11746",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11745",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11744",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11743",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11742",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11741",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11740",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11739",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11738",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11737",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11736",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11735",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11734",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.62.244:11733",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.53.105:10579",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://868bAA:3bLxT6@217.29.63.159:10605",
-        "status": "active",
-        "rest_time": None
-    },
-    {
-        "proxy": "http://X27uf7:D80Azj@217.29.62.244:11730",
-        "status": "active",
-        "rest_time": None
-    }
-]
-
-async def enrich_account_description(session, account_name, data, proxy):
+async def enrich_account_description(session, account_name, data):
     try:
-        async with session.get(f"https://t.me/{account_name}", proxy=proxy["proxy"]) as response:
+        async with session.get(f"https://t.me/{account_name}", proxy=f"http://{proxy_login_password}@{proxy_http_port}") as response:
             html = await response.text()
 
         soup = BeautifulSoup(html, "html.parser")
@@ -145,12 +48,13 @@ async def enrich_account_description(session, account_name, data, proxy):
 
     except Exception as e:
         logger.error(f"Ошибка при выполнении запроса для {account_name}: {str(e)}")
-        return False, None
+        return True, None
 
-async def process_account_batch(session, account_batch, data, proxy):
+async def process_account_batch(session, account_batch, data):
     tasks = []
+    consecutive_count = 0  # Счетчик последовательных повторений фразы
     for account_name in account_batch:
-        task = asyncio.create_task(enrich_account_description(session, account_name, data, proxy))
+        task = asyncio.create_task(enrich_account_description(session, account_name, data))
         tasks.append(task)
 
     results = await asyncio.gather(*tasks)
@@ -161,24 +65,16 @@ async def process_account_batch(session, account_batch, data, proxy):
         logger.info(f"Описание пользователя {account_name}: {description}")
 
         if has_telegram_description:
-            return True
+            logger.info(f"Найдено описание пользователя с фразой 'If you haveTelegram, you can': {account_name}")
+            consecutive_count += 1
+            if consecutive_count >= 10:
+                return True  # Прерывание цикла итерации аккаунтов
+        else:
+            consecutive_count = 0  # Сброс счетчика при отсутствии фразы
 
     return False
 
-def proxy_sleep(proxy):
-    proxy["status"] = "rest"
-    proxy["rest_time"] = time.time() + 15
 
-def get_active_proxy():
-    now = time.time()
-    for proxy in proxies:
-        if proxy["status"] == "active":
-            return proxy
-        elif proxy["status"] == "rest" and proxy["rest_time"] <= now:
-            proxy["status"] = "active"
-            proxy["rest_time"] = None
-            return proxy
-    return None
 
 async def main():
     with open(file_path, "r", encoding="utf-8") as file:
@@ -188,7 +84,7 @@ async def main():
     accounts = list(data["accounts"].keys())
 
     num_accounts = len(accounts)
-    batch_size = 5
+    batch_size = 50
     num_batches = (num_accounts + batch_size - 1) // batch_size
 
     batch_index = 0
@@ -197,22 +93,23 @@ async def main():
         end_index = min(start_index + batch_size, num_accounts)
         account_batch = accounts[start_index:end_index]
 
-        proxy = get_active_proxy()
-        print(batch_index, num_batches, proxy)
-        if proxy is None:
-            logger.info("Все прокси отдыхают. Ожидание восстановления прокси...")
-            await asyncio.sleep(5)
-            continue
+        print(batch_index, num_batches)
 
         async with aiohttp.ClientSession() as session:
-            has_telegram_description = await process_account_batch(session, account_batch, data, proxy)
+            has_telegram_description = await process_account_batch(session, account_batch, data)
 
-        if has_telegram_description:
-            logger.info("Одно или несколько описаний содержат фразу 'If you haveTelegram, you can'. "
-                        "Повторная итерация с новой пачкой...")
-            proxy_sleep(proxy)
-        else:
-            batch_index += 1
+            if has_telegram_description:
+                logger.info("Одно или несколько описаний содержат фразу 'If you haveTelegram, you can'. "
+                            "Выполняется GET-запрос на указанный сайт...")
+
+                async with session.get(proxy_change_proxy) as response:
+                    website_content = await response.text()
+
+                logger.info(f"Ответ от сайта: {website_content}")
+
+                time.sleep(10)  # Пауза в 5 секунд
+            else:
+                batch_index += 1
 
     with open(file_path, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=2, ensure_ascii=False)

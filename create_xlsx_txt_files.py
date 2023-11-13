@@ -6,14 +6,21 @@ import re
 
 
 class User:
-    def __init__(self, user_id, first_name, last_name, status, description, full):
+    def __init__(self, user_id, first_name, last_name, status, description, full, messages):
         self.user_id = user_id
         self.first_name = first_name
         self.last_name = last_name
         self.status = status
         self.description = description
         self.full = full
+        self.messages = messages
 
+def preprocess_message(message):
+    if not isinstance(message, str):
+        return ""
+
+    processed_message = re.sub(r"[^\wа-яА-Я]", "", message)
+    return processed_message.lower()
 
 def get_user_status(last_online, date_updated):
     if last_online is None:
@@ -49,6 +56,11 @@ def analyze_users(data):
             and user_message_count.get(user, 0) >= 0
             and not has_duplicate_messages(data, user)
         ):
+            first_name = data["accounts"][user].get("first_name", "")
+            last_name = data["accounts"][user].get("last_name", "")
+            description = data["accounts"][user].get("description", "")
+            messages = get_all_messages(data, user, first_name, last_name, description, user)
+
             user_info = User(
                 user_id=user,
                 first_name=data["accounts"][user].get("first_name"),
@@ -59,16 +71,26 @@ def analyze_users(data):
                 ),
                 description=data["accounts"][user].get("description"),
                 full=data["accounts"][user].get("full_user_info"),
+                messages=messages
             )
 
             real_users.append(user_info)
 
-    # Сортировка списка пользователей по статусу
+    good_words = []
+    delete_words = []
+
     real_users = sorted(
         real_users,
         key=lambda x: (
+            any(preprocess_message(word) in x.messages for word in good_words),
+            (not any(preprocess_message(word) in x.messages for word in delete_words)),
+            x.full is not None and x.full.get("premium", False),  
+            x.description is not None,
             x.status == "Активный",
+            x.full is not None and isinstance(x.full.get("phone"), str),
             x.status == "Средне активный",
+            x.first_name is not None,
+            x.last_name is not None,
             x.status == "Неактивный",
             x.status == "Неизвестно",
         ),
@@ -77,12 +99,23 @@ def analyze_users(data):
 
     return real_users, user_chat_count, user_message_count
 
-
 def preprocess_message(message):
-    # Удаление пробелов и символов, оставление только кириллицы
+    if not isinstance(message, str):
+        return ""
+
     processed_message = re.sub(r"[^\wа-яА-Я]", "", message)
     return processed_message.lower()
 
+def get_all_messages(data, user_id, a, b, c, d):
+    chats = data["accounts"][user_id].get("chats", {})
+    messages = []
+
+
+    for chat_id, chat_messages in chats.items():
+        processed_messages = [preprocess_message(message) for message in chat_messages]
+        messages.extend(processed_messages)
+
+    return preprocess_message("".join(messages) + preprocess_message(a) + preprocess_message(b) + preprocess_message(c) + preprocess_message(d))
 
 def has_duplicate_messages(data, user_id):
     chats = data["accounts"][user_id].get("chats", {})
@@ -136,7 +169,7 @@ def write_to_txt(filename, users):
     with open(filename, "w") as file:
         for user in users:
             if user.user_id is not None:
-                file.write(user.user_id + "\n")
+                file.write(f'"{user.user_id}",' + "\n")
 
 
 def main():

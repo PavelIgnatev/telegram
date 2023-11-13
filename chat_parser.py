@@ -6,8 +6,14 @@ from telethon import TelegramClient
 import datetime
 from telethon.tl.types import User, Chat, Channel
 from telethon.errors import ChatAdminRequiredError
+import os
 
-queryKey = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+api_id = 21545783
+api_hash = '389839339699f6a919ac6ead583df8fa'
+session_name = 'session.session'
+queryKey = [  'а', 'б', 'в', 'г', 'д', 'е', 'ё', 'ж', 'з', 'и', 'й', 'к', 'л', 'м',
+  'н', 'о', 'п', 'р', 'с', 'т', 'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ',
+  'ы', 'ь', 'э', 'ю', 'я', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -51,7 +57,7 @@ def save_user_data(user_data, file_path):
     logger.info("-------------------------------------------------------------------------------")
 
 
-async def main(api_id, api_hash, session_name, chat_urls_or_usernames, file_path):
+async def main(chat_urls_or_usernames, file_path):
     user_data = {"chats": {}, "accounts": {}}
     async with TelegramClient(session_name, api_id, api_hash) as client:
         for chat_url_or_username in chat_urls_or_usernames:
@@ -146,11 +152,20 @@ async def main(api_id, api_hash, session_name, chat_urls_or_usernames, file_path
 
     save_user_data(user_data, file_path)
 
-api_id = input("Введите api_id: ")
-api_hash = input("Введите api_hash: ")
-session_name = input("Введите значение сессии: ")
-chat_urls_file = input("Введите путь до файла, откуда будут выгружены ссылки на чаты: ")
-file_path = input("Введите путь до файла, куда записаны полученные значения после парсинга чатов: ")
+txt_files = [f for f in os.listdir("txt") if f.endswith(".txt")]
+if not txt_files:
+    print("В папке 'txt' нет файлов с расширением '.txt'.")
+    exit()
+print("Доступные файлы:")
+for i, file_name in enumerate(txt_files, start=1):
+    print(f"{i}. {file_name}")
+selected_file_index = int(input("Введите номер файла из папки txt: ")) - 1
+chat_urls_file = os.path.join("txt", txt_files[selected_file_index])
+
+json_folder = "json"
+os.makedirs(json_folder, exist_ok=True)
+file_path = os.path.join(json_folder, f"{txt_files[selected_file_index][:-4]}.json")
+
 chat_urls_or_usernames = []
 
 with open(chat_urls_file, "r") as file:
@@ -162,11 +177,7 @@ with open(chat_urls_file, "r") as file:
 
 logger.info("-------------------------------------------------------------------------------")
 logger.info(f"ВВЕДЕННЫЕ ДАННЫЕ ДЛЯ ЗАПУСКА СКРИПТА")
-logger.info(f"api_id :{api_id}")
-logger.info(f"api_hash :{api_hash}")
-logger.info(f"session_name :{session_name}")
 logger.info(f"chat_urls_or_usernames :{chat_urls_or_usernames}")
 logger.info(f"file_path :{file_path}")
 
-
-asyncio.run(main(api_id, api_hash, session_name, chat_urls_or_usernames, file_path))
+asyncio.run(main(chat_urls_or_usernames, file_path))
